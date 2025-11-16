@@ -1,0 +1,5 @@
+{
+  "name": "ShiftSense AI",
+  "description": "A comprehensive, production-ready workforce management dashboard that integrates with an n8n AI backend to provide real-time employee risk analysis, predictions, and alerts.",
+  "requestFramePermissions": []
+}

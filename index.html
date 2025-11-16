@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShiftSense AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --background: 210 40% 98%;
+        --foreground: 222.2 84% 4.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 222.2 84% 4.9%;
+        --primary: 221.2 83.2% 53.3%;
+        --primary-foreground: 210 40% 98%;
+        --secondary: 210 40% 96.1%;
+        --secondary-foreground: 222.2 47.4% 11.2%;
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 222.2 84% 4.9%;
+      }
+
+      .dark {
+        --background: 224 71% 4%;
+        --foreground: 210 40% 98%;
+        --card: 224 71% 4%;
+        --card-foreground: 210 40% 98%;
+        --primary: 217.2 91.2% 59.8%;
+        --primary-foreground: 222.2 47.4% 11.2%;
+        --secondary: 217.2 32.6% 17.5%;
+        --secondary-foreground: 210 40% 98%;
+        --muted: 217.2 32.6% 17.5%;
+        --muted-foreground: 215 20.2% 65.1%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 217.2 32.6% 17.5%;
+        --input: 217.2 32.6% 17.5%;
+        --ring: 212.7 26.8% 83.9%;
+      }
+    </style>
+     <script>
+      (function() {
+        function setTheme(theme) {
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+          localStorage.setItem('shiftsense-theme', theme);
+        }
+        var theme = localStorage.getItem('shiftsense-theme');
+        if (theme) {
+          setTheme(theme);
+        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          setTheme('dark');
+        } else {
+          setTheme('light');
+        }
+      })();
+    </script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              heading: ['Poppins', 'sans-serif'],
+            },
+            colors: {
+              border: 'hsl(var(--border))',
+              input: 'hsl(var(--input))',
+              ring: 'hsl(var(--ring))',
+              background: 'hsl(var(--background))',
+              foreground: 'hsl(var(--foreground))',
+              primary: {
+                DEFAULT: 'hsl(var(--primary))',
+                foreground: 'hsl(var(--primary-foreground))',
+              },
+              secondary: {
+                DEFAULT: 'hsl(var(--secondary))',
+                foreground: 'hsl(var(--secondary-foreground))',
+              },
+              destructive: {
+                DEFAULT: 'hsl(var(--destructive))',
+                foreground: 'hsl(var(--destructive-foreground))',
+              },
+              muted: {
+                DEFAULT: 'hsl(var(--muted))',
+                foreground: 'hsl(var(--muted-foreground))',
+              },
+              card: {
+                DEFAULT: 'hsl(var(--card))',
+                foreground: 'hsl(var(--card-foreground))',
+              },
+              critical: '#ef4444',
+              warning: '#f97316',
+              monitor: '#3b82f6',
+              good: '#22c55e',
+            },
+            keyframes: {
+              'fade-in': {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              'slide-in-up': {
+                '0%': { opacity: '0', transform: 'translateY(24px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              'pop-in': {
+                '0%': { transform: 'scale(0.95)', opacity: '0' },
+                '100%': { transform: 'scale(1)', opacity: '1' },
+              },
+            },
+            animation: {
+              'fade-in': 'fade-in 0.5s ease-out forwards',
+              'slide-in-up': 'slide-in-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+              'pop-in': 'pop-in 0.4s ease-out forwards',
+            },
+          },
+        },
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.553.0",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.4.1",
+    "tailwind-merge": "https://aistudiocdn.com/tailwind-merge@^3.4.0",
+    "react-hot-toast": "https://aistudiocdn.com/react-hot-toast@^2.6.0",
+    "papaparse": "https://aistudiocdn.com/papaparse@^5.5.3",
+    "date-fns": "https://aistudiocdn.com/date-fns@^4.1.0",
+    "clsx": "https://aistudiocdn.com/clsx@^2.1.1"
+  }
+}
+</script>
+</head>
+  <body class="bg-background text-foreground transition-colors duration-300">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
