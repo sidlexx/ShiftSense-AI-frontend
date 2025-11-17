@@ -1,0 +1,449 @@
+{
+  "name": "ShiftSense AI - Complete System",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-2624, 448],
+      "id": "manual-trigger-node",
+      "name": "Manual Trigger - Testing",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "shiftsense-intake",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-production-node",
+      "name": "Webhook - Production",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-2624, 640],
+      "webhookId": "shiftsense-intake",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{$env.GOOGLE_SHEETS_ID}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "RawData",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "read-employee-data-node",
+      "name": "Read Employee Data",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [-2400, 544],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "{{GOOGLE_SHEETS_CREDENTIAL_ID}}",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "set-team-analytics-node",
+      "name": "SET #1 - Team Analytics",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [-2176, 448]
+    },
+    {
+      "parameters": {},
+      "id": "limit-employee-node",
+      "name": "LIMIT - 1 Employee (AI Path)",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [-1952, 448]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "set-employee-context-node",
+      "name": "SET #2 - Employee Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [-1728, 448]
+    },
+    {
+      "parameters": {
+        "jsCode": "// RISK CALCULATION ENGINE - Fixed\n// Check if data is coming from SET node or directly from previous node\nconst employee = $json.current_metrics ? JSON.parse($json.current_metrics) : $json;\nconst teamAvg = $json.team_avg_adherence || 80; // Default fallback\n\nlet riskScore = 0;\nlet riskFactors = [];\n\n// Adherence\nif (employee.adherence_pct < 60) {\n  riskScore += 35;\n  riskFactors.push('critically low adherence');\n} else if (employee.adherence_pct < 75) {\n  riskScore += 20;\n  riskFactors.push('below-target adherence');\n} else if (employee.adherence_pct < 85) {\n  riskScore += 10;\n  riskFactors.push('moderate adherence concerns');\n}\n\n// Team comparison\nif (employee.adherence_pct < teamAvg - 15) {\n  riskScore += 10;\n  riskFactors.push('significantly below team');\n}\n\n// Tardiness\nif (employee.tardiness_count > 4) {\n  riskScore += 25;\n  riskFactors.push('excessive tardiness');\n} else if (employee.tardiness_count > 2) {\n  riskScore += 15;\n  riskFactors.push('recurring tardiness');\n}\n\n// AUX\nif (employee.aux_time_pct > 40) {\n  riskScore += 20;\n  riskFactors.push('excessive AUX time');\n} else if (employee.aux_time_pct > 25) {\n  riskScore += 10;\n  riskFactors.push('high AUX time');\n}\n\n// Productivity\nif (employee.calls_handled < 60) {\n  riskScore += 15;\n  riskFactors.push('low call volume');\n} else if (employee.calls_handled < 100) {\n  riskScore += 5;\n  riskFactors.push('below-average productivity');\n}\n\n// Absences\nif (employee.unplanned_absences > 2) {\n  riskScore += 25;\n  riskFactors.push('frequent absences');\n} else if (employee.unplanned_absences > 0) {\n  riskScore += 10;\n  riskFactors.push('absences present');\n}\n\n// Categorize\nlet riskLevel;\nif (riskScore >= 70) riskLevel = 'Critical';\nelse if (riskScore >= 40) riskLevel = 'Warning';\nelse if (riskScore >= 20) riskLevel = 'Monitor';\nelse riskLevel = 'Good';\n\nconst needsCoverage = riskScore >= 70 || employee.unplanned_absences > 1;\n\nreturn {\n  ...employee,\n  calculated_risk_score: riskScore,\n  calculated_risk_level: riskLevel,\n  risk_factors: riskFactors.join(', '),\n  needs_shift_coverage: needsCoverage,\n  team_comparison: $json.team_comparison || 'No comparison available',\n  metrics_summary: `Adherence: ${employee.adherence_pct}% (Team: ${teamAvg}%), Tardiness: ${employee.tardiness_count}, AUX: ${employee.aux_time_pct}%, Calls: ${employee.calls_handled}, Absences: ${employee.unplanned_absences}`\n};"
+      },
+      "id": "code-calculate-risk-node",
+      "name": "CODE - Calculate Risk",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1504, 448]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "={{$env.GEMINI_API_KEY}}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "={{ [{\n  \"parts\": [{\n    \"text\": \"ShiftSense AI: Analyze this employee.\\n\\nEmployee: \" + $json.employee_name + \"\\nRisk: \" + $json.calculated_risk_level + \" (\" + $json.calculated_risk_score + \"/100)\\nIssues: \" + $json.risk_factors + \"\\n\\nReturn ONLY JSON:\\n{\\n  \\\"ai_prediction\\\": \\\"Brief prediction\\\",\\n  \\\"ai_recommendation\\\": \\\"One specific action\\\",\\n  \\\"ot_strategy\\\": \\\"Who to invite for OT\\\",\\n  \\\"aux_strategy\\\": \\\"AUX reduction plan\\\"\\n}\"\n  }]\n}] }}"
+            },
+            {
+              "name": "generationConfig",
+              "value": "={{ {\"temperature\": 0.4, \"maxOutputTokens\": 800} }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ai-generate-insights-node",
+      "name": "AI - Generate Insights",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [-1280, 448]
+    },
+    {
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "ai_response",
+              "type": "objectValue",
+              "objectValue": "=={{ JSON.parse($input.item.json.candidates[0].content.parts[0].text.replace(/```json\\n?/g, '').replace(/```/g, '').trim()) }}"
+            },
+            {
+              "name": "risk_data",
+              "type": "objectValue",
+              "objectValue": "=={{ $('CODE - Calculate Risk').item.json }}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-merge-prep-node",
+      "name": "SET #3 - Merge Prep",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [-1088, 560]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "set-final-output-node",
+      "name": "SET #4 - Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [-928, 384]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{$env.GOOGLE_SHEETS_ID}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Predictions",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "write-predictions-node",
+      "name": "Write Predictions",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [-688, 528],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "{{GOOGLE_SHEETS_CREDENTIAL_ID}}",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.risk_data.calculated_risk_level }}",
+              "value2": "Critical"
+            }
+          ]
+        }
+      },
+      "id": "is-critical-node",
+      "name": "Is Critical?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [-464, 528]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$env.ALERT_EMAIL}}",
+        "subject": "=🚨 URGENT ACTION REQUIRED: {{ $json.risk_data.employee_name }} - Critical Performance Risk Detected",
+        "message": "=<div style=\"font-family: Arial, sans-serif; max-width: 650px; background: #ffffff;\">\n  <div style=\"background: linear-gradient(135deg, #d32f2f 0%, #c62828 100%); color: white; padding: 25px; border-radius: 8px 8px 0 0;\">\n    <h1 style=\"margin: 0; font-size: 24px;\">⚠️ CRITICAL WORKFORCE ALERT</h1>\n    <p style=\"margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;\">Immediate Manager Intervention Required</p>\n  </div>\n  <div style=\"background: #fff3cd; padding: 20px; border-left: 5px solid #d32f2f; margin: 0;\">\n    <h2 style=\"margin: 0 0 15px 0; color: #d32f2f; font-size: 20px;\">Employee at High Risk</h2>\n    <table style=\"width: 100%; border-collapse: collapse;\">\n      <tr>\n        <td style=\"padding: 8px 0; font-weight: bold; width: 140px;\">Employee:</td>\n        <td style=\"padding: 8px 0;\">{{ $json.risk_data.employee_name }} (ID: {{ $json.risk_data.employee_id }})</td>\n      </tr>\n      <tr>\n        <td style=\"padding: 8px 0; font-weight: bold;\">Risk Score:</td>\n        <td style=\"padding: 8px 0;\"><span style=\"font-size: 24px; font-weight: bold; color: #d32f2f;\">{{ $json.risk_data.calculated_risk_score }}</span>/100</td>\n      </tr>\n    </table>\n  </div>\n  <div style=\"background: #e3f2fd; padding: 20px; margin: 20px 0; border-radius: 8px;\">\n    <h3 style=\"margin: 0 0 15px 0; color: #1976d2;\">🤖 AI Analysis</h3>\n    <p style=\"margin: 0;\">{{ $json.ai_response.ai_prediction }}</p>\n  </div>\n  <div style=\"background: #fff9e6; padding: 20px; margin: 20px 0; border-radius: 8px;\">\n    <h3 style=\"margin: 0 0 15px 0; color: #f57c00;\">⚡ ACTION PLAN</h3>\n    <p><strong>Primary:</strong> {{ $json.ai_response.ai_recommendation }}</p>\n    <p><strong>OT Strategy:</strong> {{ $json.ai_response.ot_strategy }}</p>\n    <p><strong>AUX Plan:</strong> {{ $json.ai_response.aux_strategy }}</p>\n  </div>\n  <div style=\"text-align: center; padding: 20px; color: #999; font-size: 12px;\">\n    <p style=\"margin: 0;\"><strong>ShiftSense AI</strong> - Workforce Management System</p>\n    <p style=\"margin: 5px 0 0 0;\">Generated: {{ $now.toISO() }}</p>\n  </div>\n</div>",
+        "options": {}
+      },
+      "id": "send-gmail-alert-node",
+      "name": "Send Gmail Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [-240, 464],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "{{GMAIL_CREDENTIAL_ID}}",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{$env.GOOGLE_SHEETS_ID}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Alerts",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "alert_timestamp": "={{ $now.toISO() }}",
+            "employee_id": "={{ $('Is Critical?').item.json.risk_data.employee_id }}",
+            "employee_name": "={{ $('Is Critical?').item.json.risk_data.employee_name }}",
+            "risk_level": "={{ $('Is Critical?').item.json.risk_data.calculated_risk_level }}",
+            "risk_score": "={{ $('Is Critical?').item.json.risk_data.calculated_risk_score }}",
+            "alert_sent": "true",
+            "recommended_action": "={{ $('Is Critical?').item.json.ai_response.ai_recommendation }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "log-alert-node",
+      "name": "Log Alert",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [-16, 464],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "{{GOOGLE_SHEETS_CREDENTIAL_ID}}",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  status: 'success',\n  employee: $json.employee_name,\n  risk: {\n    level: $json.risk_level,\n    score: $json.risk_score\n  },\n  timestamp: $json.analysis_timestamp\n} }}",
+        "options": {}
+      },
+      "id": "send-response-node",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [208, 592]
+    },
+    {
+      "parameters": {
+        "content": "## ShiftSense AI - Testing Mode\n\nLimited to 1 employee for token conservation.\nFor batch processing, remove LIMIT node.",
+        "width": 544
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-1952, 256],
+      "typeVersion": 1,
+      "id": "note-testing",
+      "name": "Sticky Note - Testing"
+    },
+    {
+      "parameters": {
+        "content": "## Batch Processing (Disabled)\n\nCode-only risk analysis for all employees.\nNo AI calls - instant processing.\nEnable for large-scale demos.",
+        "height": 160,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-2176, 848],
+      "id": "note-batch",
+      "name": "Sticky Note - Batch"
+    },
+    {
+      "parameters": {
+        "jsCode": "// BATCH PROCESS ALL EMPLOYEES (NO AI - CODE ONLY)\nconst allEmployees = $input.all();\nconst results = [];\n\nconst teamAvgAdherence = Math.round(\n  allEmployees.reduce((sum, item) => sum + item.json.adherence_pct, 0) / allEmployees.length\n);\n\nallEmployees.forEach(item => {\n  const employee = item.json;\n  let riskScore = 0;\n  let riskFactors = [];\n\n  if (employee.adherence_pct < 60) {\n    riskScore += 35;\n    riskFactors.push('critically low adherence');\n  } else if (employee.adherence_pct < 75) {\n    riskScore += 20;\n    riskFactors.push('below-target adherence');\n  }\n\n  if (employee.tardiness_count > 4) {\n    riskScore += 25;\n    riskFactors.push('excessive tardiness');\n  }\n\n  if (employee.aux_time_pct > 40) {\n    riskScore += 20;\n    riskFactors.push('excessive AUX');\n  }\n\n  if (employee.calls_handled < 60) {\n    riskScore += 15;\n    riskFactors.push('low calls');\n  }\n\n  if (employee.unplanned_absences > 2) {\n    riskScore += 25;\n    riskFactors.push('frequent absences');\n  }\n\n  let riskLevel;\n  if (riskScore >= 70) riskLevel = 'Critical';\n  else if (riskScore >= 40) riskLevel = 'Warning';\n  else if (riskScore >= 20) riskLevel = 'Monitor';\n  else riskLevel = 'Good';\n\n  results.push({\n    employee_id: employee.employee_id,\n    employee_name: employee.employee_name,\n    risk_level: riskLevel,\n    risk_score: riskScore,\n    risk_factors: riskFactors.join(', '),\n    analysis_timestamp: new Date().toISOString(),\n    analysis_method: 'code-only-batch'\n  });\n});\n\nreturn results;"
+      },
+      "id": "code-batch-all-node",
+      "name": "CODE - Batch ALL (No AI)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1952, 640],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{$env.GOOGLE_SHEETS_ID}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Predictions",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData"
+        },
+        "options": {}
+      },
+      "id": "write-batch-results-node",
+      "name": "Write Batch Results",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [-1952, 704],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "{{GOOGLE_SHEETS_CREDENTIAL_ID}}",
+          "name": "Google Sheets account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "={{$env.GOOGLE_SHEETS_ID}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "RawData",
+          "mode": "name"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [-2608, 816],
+      "id": "google-sheets-trigger-node",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "{{GOOGLE_SHEETS_TRIGGER_CREDENTIAL_ID}}",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger - Testing": {
+      "main": [[{"node": "Read Employee Data", "type": "main", "index": 0}]]
+    },
+    "Webhook - Production": {
+      "main": [[{"node": "Read Employee Data", "type": "main", "index": 0}]]
+    },
+    "Read Employee Data": {
+      "main": [[
+        {"node": "SET #1 - Team Analytics", "type": "main", "index": 0},
+        {"node": "CODE - Batch ALL (No AI)", "type": "main", "index": 0}
+      ]]
+    },
+    "SET #1 - Team Analytics": {
+      "main": [[{"node": "LIMIT - 1 Employee (AI Path)", "type": "main", "index": 0}]]
+    },
+    "LIMIT - 1 Employee (AI Path)": {
+      "main": [[{"node": "SET #2 - Employee Context", "type": "main", "index": 0}]]
+    },
+    "SET #2 - Employee Context": {
+      "main": [[{"node": "CODE - Calculate Risk", "type": "main", "index": 0}]]
+    },
+    "CODE - Calculate Risk": {
+      "main": [[{"node": "AI - Generate Insights", "type": "main", "index": 0}]]
+    },
+    "AI - Generate Insights": {
+      "main": [[{"node": "SET #3 - Merge Prep", "type": "main", "index": 0}]]
+    },
+    "SET #3 - Merge Prep": {
+      "main": [[{"node": "SET #4 - Final Output", "type": "main", "index": 0}]]
+    },
+    "SET #4 - Final Output": {
+      "main": [[{"node": "Write Predictions", "type": "main", "index": 0}]]
+    },
+    "Write Predictions": {
+      "main": [[{"node": "Is Critical?", "type": "main", "index": 0}]]
+    },
+    "Is Critical?": {
+      "main": [
+        [{"node": "Send Gmail Alert", "type": "main", "index": 0}],
+        [{"node": "Send Response", "type": "main", "index": 0}]
+      ]
+    },
+    "Send Gmail Alert": {
+      "main": [[{"node": "Log Alert", "type": "main", "index": 0}]]
+    },
+    "Log Alert": {
+      "main": [[{"node": "Send Response", "type": "main", "index": 0}]]
+    },
+    "CODE - Batch ALL (No AI)": {
+      "main": [[{"node": "Write Batch Results", "type": "main", "index": 0}]]
+    },
+    "Google Sheets Trigger": {
+      "main": [[{"node": "Read Employee Data", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
